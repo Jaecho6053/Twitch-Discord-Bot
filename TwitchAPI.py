@@ -13,7 +13,7 @@ API_Token = ''
 params = {
     'client_secret' : client_secret,
     'grant_type' : 'client_credentials',
-    'client_id' : 'uhwxt9tkd8mc3e8oxo9r9sauh81jod',
+    'client_id' : client_id,
 }
 
 def job():
@@ -39,16 +39,18 @@ def Live_or_Not(streamer):
 
     live_option = ["휴뱅중", "뱅온중"]
     is_live = live_option[is_live]
-
     return is_live
 
 def Periodic_Live_Check(streamer):
     is_live = requests.get('https://api.twitch.tv/helix/search/channels', params={'query': streamer}, headers=headers)
     is_live = is_live.json()
+    title = is_live.get('data')[0].get('title')
+    thumbnail_url = is_live.get('data')[0].get('thumbnail_url')
+
+
     for data in is_live['data']:
         if data['broadcaster_login'] == streamer:
-            return data['is_live']
-        
+            return data['is_live'], title, thumbnail_url
     return False
 
 # if __name__ == '__main__':  #이 파일 전용 테스트 코드
