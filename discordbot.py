@@ -5,15 +5,32 @@ from datetime import timedelta
 from pytz import timezone
 
 
+intents = discord.Intents.default()
+intents.message_content = True
+client = discord.Client(intents=intents)   #Create class 13 to 15 lines set intents error
+
 f = open("discord_token.txt", 'r')
 discord_token = f.readline()
 f = f.close()
 
-
-intents = discord.Intents.default()
-intents.message_content = True
-client = discord.Client(intents=intents)   #클래스 생성 13~15줄은 intents오류 설정
-
+shortcut_links = {
+    "woowakgood":"https://www.twitch.tv/woowakgood", 
+    "vo_ine":"https://www.twitch.tv/vo_ine",
+    "jingburger":"https://www.twitch.tv/jingburger",
+    "lilpaaaaaa":"https://www.twitch.tv/lilpaaaaaa", 
+    "cotton__123":"https://www.twitch.tv/cotton__123", 
+    "gosegugosegu":"https://www.twitch.tv/gosegugosegu", 
+    "viichan6":"https://www.twitch.tv/viichan6"
+}
+personal_color = {
+    "woowakgood":0x008d62, 
+    "vo_ine":0x8A2BE2,
+    "jingburger":0xf0a957,
+    "lilpaaaaaa":0x000080, 
+    "cotton__123":0x800080, 
+    "gosegugosegu":0x467ec6, 
+    "viichan6":0x85ac20
+}
 streamers = {
     "woowakgood":"우왁굳", 
     "vo_ine":"아이네",
@@ -33,55 +50,55 @@ live_compare = {
     "viichan6":False
 }
 
-ls = []
+discord_channels = []
 
 @client.event
 async def on_ready():
     change_status.start()
-    print(f'Ready Kinga!')
+    print(f'Ready!')
 
 @client.event
 async def on_message(message):
-    if message.author == client.user:      #봇은 메세지들의 모든 단어들을 체크하는데, 이때 자신의 메세지는 리턴하여 무시하고 사용자의 메세지만 받는다
+    if message.author == client.user:      #The bot checks all the words in the messages, when it returns its own message and only receives the user's message
         return
-    elif message.content.startswith('/뱅'):
+    elif message.content.startswith('/register bot'):
+        discord_channels.append(message.channel.id)
+        await message.channel.send('registered the channel')
+    elif message.content.startswith('/delete bot'):
+        discord_channels.remove(message.channel.id)
+        await message.channel.send('got rid of the bot')
+    elif message.content.startswith('/start bot'):
+        when_live.start()
+
+    elif message.content.startswith('/stream condition'):
         global live_list
         live_list = ''
         for streamer_id, streamer in streamers.items():
             is_live = Live_or_Not(streamer_id)
-            live_list += f'{streamer}: {is_live}\n'
+            embed = discord.Embed(title="streamers")
+            if live_compare[streamer_id]:
+                live_list += f"{streamer}: [{is_live}]("+shortcut_links[streamer_id]+")\n"
+            else:
+                live_list += f"{streamer}: {is_live}\n"
+        embed.description = live_list
+        await message.channel.send(embed=embed)
 
-        await message.channel.send("```" + live_list + "```")
-
-    elif message.content.startswith('/봇등록'):
-        ls.append(message.channel.id)
-        await message.channel.send('채널을 등록했어염')
-    elif message.content.startswith('/봇제거'):
-        ls.remove(message.channel.id)
-        await message.channel.send('봇을 제거했어요')
-    elif message.content.startswith('/봇시작'):
-        when_live.start()
-
-
-@tasks.loop(seconds=2)
+@tasks.loop(seconds=30)
 async def when_live():
-    for channel in ls:
+    for channel in discord_channels:
         channel = client.get_channel(channel)
-        print(channel)
         for streamer_id, streamer in streamers.items():
-            is_live = Periodic_Live_Check(streamer_id)
+            is_live, title, thumbnail_url = Periodic_Live_Check(streamer_id)
             if is_live:
                 if is_live != live_compare.get(streamer_id):
                     live_compare[streamer_id] = True
-                    await channel.send("@everyone " + streamer + " 뱅온!")
+                    embed = discord.Embed(title=streamer+" shortcut", url=shortcut_links[streamer_id], color=personal_color[streamer_id])
+                    embed.description = title
+                    embed.set_image(url=thumbnail_url)
+                    await channel.send("@everyone " + streamer + " on air!", embed=embed)
             else:
                 if is_live != live_compare.get(streamer_id):
                     live_compare[streamer_id] = False
-                    await channel.send("@everyone " + streamer + " 뱅종!")
-
-@tasks.loop(seconds=255)
-async def change_status():
-    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name='RE:WIND'))
-    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name='겨울봄'))
+                    await channel.send("@everyone " + streamer + " off air!")
 
 client.run(discord_token)
