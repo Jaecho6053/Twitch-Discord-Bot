@@ -7,11 +7,13 @@ from pytz import timezone
 
 intents = discord.Intents.default()
 intents.message_content = True
-client = discord.Client(intents=intents)   #Create class 13 to 15 lines set intents error
+client = discord.Client(intents=intents)   #클래스 생성 13~15줄은 intents오류 설정
 
 f = open("discord_token.txt", 'r')
 discord_token = f.readline()
 f = f.close()
+
+channel = 897165021862326293
 
 shortcut_links = {
     "woowakgood":"https://www.twitch.tv/woowakgood", 
@@ -50,32 +52,22 @@ live_compare = {
     "viichan6":False
 }
 
-discord_channels = []
-
 @client.event
 async def on_ready():
+    when_live.start()
     change_status.start()
-    print(f'Ready!')
+    print(f'Ready Kinga!')
 
 @client.event
 async def on_message(message):
-    if message.author == client.user:      #The bot checks all the words in the messages, when it returns its own message and only receives the user's message
+    if message.author == client.user:      #봇은 메세지들의 모든 단어들을 체크하는데, 이때 자신의 메세지는 리턴하여 무시하고 사용자의 메세지만 받는다
         return
-    elif message.content.startswith('/register bot'):
-        discord_channels.append(message.channel.id)
-        await message.channel.send('registered the channel')
-    elif message.content.startswith('/delete bot'):
-        discord_channels.remove(message.channel.id)
-        await message.channel.send('got rid of the bot')
-    elif message.content.startswith('/start bot'):
-        when_live.start()
-
-    elif message.content.startswith('/stream condition'):
+    elif message.content.startswith('/뱅'):
         global live_list
         live_list = ''
         for streamer_id, streamer in streamers.items():
             is_live = Live_or_Not(streamer_id)
-            embed = discord.Embed(title="streamers")
+            embed = discord.Embed(title="방송현황")
             if live_compare[streamer_id]:
                 live_list += f"{streamer}: [{is_live}]("+shortcut_links[streamer_id]+")\n"
             else:
@@ -85,20 +77,25 @@ async def on_message(message):
 
 @tasks.loop(seconds=30)
 async def when_live():
-    for channel in discord_channels:
-        channel = client.get_channel(channel)
-        for streamer_id, streamer in streamers.items():
-            is_live, title, thumbnail_url = Periodic_Live_Check(streamer_id)
-            if is_live:
-                if is_live != live_compare.get(streamer_id):
-                    live_compare[streamer_id] = True
-                    embed = discord.Embed(title=streamer+" shortcut", url=shortcut_links[streamer_id], color=personal_color[streamer_id])
-                    embed.description = title
-                    embed.set_image(url=thumbnail_url)
-                    await channel.send("@everyone " + streamer + " on air!", embed=embed)
-            else:
-                if is_live != live_compare.get(streamer_id):
-                    live_compare[streamer_id] = False
-                    await channel.send("@everyone " + streamer + " off air!")
+    global channel
+    channel = client.get_channel(channel)
+    for streamer_id, streamer in streamers.items():
+        is_live, title, thumbnail_url = Periodic_Live_Check(streamer_id)
+        if is_live:
+            if is_live != live_compare.get(streamer_id):
+                live_compare[streamer_id] = True
+                embed = discord.Embed(title=streamer+" 바로가기", url=shortcut_links[streamer_id], color=personal_color[streamer_id])
+                embed.description = title
+                embed.set_image(url=thumbnail_url)
+                await channel.send("@everyone " + streamer + " 뱅온!", embed=embed)
+        else:
+            if is_live != live_compare.get(streamer_id):
+                live_compare[streamer_id] = False
+                await channel.send("@everyone " + streamer + " 뱅종!")
+
+@tasks.loop(seconds=255)
+async def change_status():
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name='RE:WIND'))
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name='겨울봄'))
 
 client.run(discord_token)
